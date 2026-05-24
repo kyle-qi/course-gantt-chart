@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Course Timeline</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header window-drag">
+    <div>
+      <h1>Course Timeline</h1>
+      <p class="subtitle">Deliverables across the term</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" id="btn-export" class="btn secondary">Export JSON</button>
+      <button type="button" id="btn-import" class="btn secondary">Import JSON</button>
+      <input type="file" id="import-file" accept="application/json" hidden />
+      <button type="button" id="btn-reset" class="btn ghost">Reset to seed</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="controls-row">
+      <label>Color by
+        <select id="timeline-color">
+          <option value="course">Course</option>
+          <option value="type">Type</option>
+        </select>
+      </label>
+
+      <div class="course-filter-panel">
+        <div class="course-filter-header">
+          <span class="filter-label">Show courses</span>
+          <div class="filter-actions">
+            <button type="button" id="course-select-all" class="btn-filter">Select all</button>
+            <button type="button" id="course-select-none" class="btn-filter">Clear</button>
+          </div>
+        </div>
+        <div id="course-filter-list" class="course-filter-list" role="group" aria-label="Course visibility"></div>
+      </div>
+
+      <span id="storage-hint" class="hint"></span>
+    </div>
+
+    <div id="timeline-legend" class="legend"></div>
+    <div class="timeline-panel">
+      <div class="timeline-zoom-bar">
+        <label class="zoom-label">
+          <span>Timeline zoom</span>
+          <input type="range" id="timeline-zoom" min="8" max="56" value="20" step="1" />
+        </label>
+        <p class="hint timeline-note">If no start date is set, the bar begins 10 days before the due date. Darker columns = more weight due that day (hover a column for the total).</p>
+      </div>
+      <div id="timeline-container" class="timeline-container">
+        <div class="timeline-viewport" title="Drag to scroll the timeline">
+          <div id="timeline-scroll" class="timeline-scroll"></div>
+        </div>
+      </div>
+    </div>
+    <div id="bar-tooltip" class="bar-tooltip" hidden></div>
+
+    <section class="editor-section">
+      <div class="editor-header">
+        <h2>Deliverables</h2>
+        <button type="button" id="btn-add-row" class="btn primary">Add deliverable</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Course</th>
+              <th>Type</th>
+              <th>Task</th>
+              <th>Start</th>
+              <th>End</th>
+              <th>Weight (%)</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="editor-body"></tbody>
+        </table>
+      </div>
+      <p class="hint editor-hint" id="editor-hint">Changes save automatically.</p>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

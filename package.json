@@ -1,0 +1,33 @@
+{
+  "name": "course-timeline",
+  "version": "1.0.0",
+  "description": "Course deliverables timeline for macOS",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.courseplanner.timeline",
+    "productName": "Course Timeline",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": ["dmg", "zip"]
+    },
+    "files": [
+      "index.html",
+      "styles.css",
+      "app.js",
+      "data/**/*",
+      "electron/**/*"
+    ],
+    "directories": {
+      "output": "dist"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  }
+}
