@@ -190,16 +190,31 @@ function dayOffset(minDate, date) {
   return (startOfDay(date) - startOfDay(minDate)) / DAY_MS;
 }
 
-function buildDayWeightMap(items, days) {
+function buildDayInfoMap(items, days) {
   const map = new Map();
   for (const day of days) {
-    map.set(formatDateInput(day), 0);
+    map.set(formatDateInput(day), {
+      weight: 0,
+      items: [],
+      dateLine: day.toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }),
+    });
   }
   for (const item of items) {
     const key = formatDateInput(startOfDay(item.range.end));
-    if (map.has(key)) {
-      map.set(key, map.get(key) + item.weight);
-    }
+    if (!map.has(key)) continue;
+    const entry = map.get(key);
+    entry.weight += item.weight;
+    entry.items.push({
+      course: item.course,
+      task: item.task,
+      type: item.type,
+      weight: item.weight,
+    });
   }
   return map;
 }
@@ -208,54 +223,54 @@ function weightHeatBackground(dayWeight, maxDayWeight) {
   if (dayWeight <= 0 || maxDayWeight <= 0) return "";
   const t = dayWeight / maxDayWeight;
   const alpha = 0.18 + t * 0.82;
-  return `background-color: rgba(29, 78, 216, ${alpha.toFixed(3)});`;
+  return `background-color: rgba(220, 38, 38, ${alpha.toFixed(3)});`;
 }
 
-function dayWeightMeta(day, dayWeights, maxDayWeight) {
+function dayColumnMeta(day, dayInfoMap, maxDayWeight) {
   const key = formatDateInput(day);
-  const w = dayWeights.get(key) ?? 0;
-  const title = w > 0 ? `${w.toFixed(2)}% of grade weight due` : "Nothing due this day";
-  return { weight: w, style: weightHeatBackground(w, maxDayWeight), title };
+  const entry = dayInfoMap.get(key) ?? { weight: 0, items: [] };
+  const dateLine = day.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  return {
+    key,
+    weight: entry.weight,
+    count: entry.items.length,
+    items: entry.items,
+    dateLine,
+    style: weightHeatBackground(entry.weight, maxDayWeight),
+  };
 }
 
-let todayMarkerContext = null;
+function formatDayColumnTooltip(info) {
+  const weightLabel = info.weight > 0 ? `${info.weight.toFixed(2)}%` : "0%";
+  const countLabel = `${info.count} deliverable${info.count === 1 ? "" : "s"}`;
 
-function updateTodayMarker() {
-  const viewport = document.querySelector(".timeline-viewport");
-  const marker = document.getElementById("today-marker");
-  const ctx = todayMarkerContext;
-  if (!viewport || !marker || !ctx) {
-    if (marker) marker.hidden = true;
-    return;
+  let listHtml;
+  if (info.items.length === 0) {
+    listHtml = "<li>Nothing due this day</li>";
+  } else {
+    const shown = info.items.slice(0, 6);
+    listHtml = shown
+      .map(
+        (item) =>
+          `<li>${escapeAttr(item.course)} · ${escapeAttr(item.task)} <span class="tooltip-item-weight">${item.weight}%</span></li>`
+      )
+      .join("");
+    if (info.items.length > 6) {
+      listHtml += `<li class="tooltip-more">+${info.items.length - 6} more</li>`;
+    }
   }
 
-  const today = startOfDay(ctx.today);
-  if (today < ctx.minDate || today > ctx.maxDate) {
-    marker.hidden = true;
-    return;
-  }
-
-  const x =
-    ctx.labelWidth +
-    dayOffset(ctx.minDate, today) * ctx.timelineDayWidth +
-    ctx.timelineDayWidth / 2 -
-    viewport.scrollLeft;
-
-  if (x <= ctx.labelWidth + 4) {
-    marker.hidden = true;
-    return;
-  }
-
-  marker.hidden = false;
-  marker.style.left = `${x}px`;
-  marker.title = ctx.todayLabel;
-}
-
-function wireTodayMarkerScroll() {
-  const viewport = document.querySelector(".timeline-viewport");
-  if (!viewport || viewport.dataset.todayWired) return;
-  viewport.dataset.todayWired = "1";
-  viewport.addEventListener("scroll", updateTodayMarker, { passive: true });
+  return `
+    <p class="tooltip-title">${escapeAttr(info.dateLine)}</p>
+    <p class="tooltip-weight">${escapeAttr(weightLabel)} total weight due</p>
+    <p class="tooltip-meta">${escapeAttr(countLabel)}</p>
+    <ul class="tooltip-list">${listHtml}</ul>
+  `;
 }
 
 function deliverableInWindow(item, windowStart, windowEnd) {
@@ -474,20 +489,6 @@ function renderCourseFilter() {
   });
 }
 
-function selectAllCourses() {
-  selectedCourses = new Set(uniqueCourses());
-  renderCourseFilter();
-  savePersisted();
-  renderTimeline();
-}
-
-function selectNoCourses() {
-  selectedCourses = new Set();
-  renderCourseFilter();
-  savePersisted();
-  renderTimeline();
-}
-
 // --- timeline ---
 
 function renderTimeline() {
@@ -504,8 +505,6 @@ function renderTimeline() {
       '<p class="hint empty-msg">No courses selected. Use the course checkboxes above or click “All”.</p>';
     if (legendEl) legendEl.innerHTML = "";
     if (viewport) viewport.style.height = "";
-    todayMarkerContext = null;
-    updateTodayMarker();
     viewport?.classList.add("is-empty");
     return;
   }
@@ -530,8 +529,6 @@ function renderTimeline() {
       '<p class="hint empty-msg">No deliverables for the selected courses with due dates.</p>';
     if (legendEl) legendEl.innerHTML = "";
     if (viewport) viewport.style.height = "";
-    todayMarkerContext = null;
-    updateTodayMarker();
     viewport?.classList.add("is-empty");
     return;
   }
@@ -570,17 +567,12 @@ function renderTimeline() {
     year: "numeric",
   });
 
-  todayMarkerContext = {
-    labelWidth,
-    minDate,
-    maxDate,
-    today,
-    timelineDayWidth,
-    todayLabel: `Today — ${todayLabel}`,
-  };
+  const showTodayMarker = today >= minDate && today <= maxDate;
+  const todayLineLeft =
+    labelWidth + dayOffset(minDate, today) * timelineDayWidth + timelineDayWidth / 2;
 
-  const dayWeights = buildDayWeightMap(items, days);
-  const maxDayWeight = Math.max(0, ...dayWeights.values());
+  const dayInfoMap = buildDayInfoMap(items, days);
+  const maxDayWeight = Math.max(0, ...[...dayInfoMap.values()].map((e) => e.weight));
 
   const legendKeys = [...new Set(items.map((d) => (colorMode === "course" ? d.course : d.type)))];
   if (legendEl) {
@@ -598,8 +590,8 @@ function renderTimeline() {
   html += `<div class="timeline-weight-bg" style="grid-template-columns:${gridCols}">`;
   html += '<div class="timeline-weight-spacer"></div>';
   days.forEach((day) => {
-    const meta = dayWeightMeta(day, dayWeights, maxDayWeight);
-    html += `<div class="timeline-weight-day" style="${meta.style}" data-day-weight="${meta.weight}" title="${escapeAttr(meta.title)}"></div>`;
+    const meta = dayColumnMeta(day, dayInfoMap, maxDayWeight);
+    html += `<div class="timeline-weight-day" style="${meta.style}" data-day-key="${escapeAttr(meta.key)}"></div>`;
   });
   html += "</div>";
 
@@ -610,7 +602,7 @@ function renderTimeline() {
     const isMonthStart = day.getDate() === 1;
     const isWeekStart = day.getDay() === 1;
     const label = showLabel ? formatDayTick(day, tickEvery, timelineDayWidth) : "";
-    const meta = dayWeightMeta(day, dayWeights, maxDayWeight);
+    const meta = dayColumnMeta(day, dayInfoMap, maxDayWeight);
     const classes = [
       "timeline-tick",
       "timeline-tick-day",
@@ -620,13 +612,7 @@ function renderTimeline() {
     ]
       .filter(Boolean)
       .join(" ");
-    const dateTitle = day.toLocaleDateString(undefined, {
-      weekday: "short",
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
-    html += `<div class="${classes}" style="${meta.style}" data-day-weight="${meta.weight}" title="${escapeAttr(`${dateTitle} · ${meta.title}`)}">${label}</div>`;
+    html += `<div class="${classes}" style="${meta.style}" data-day-key="${escapeAttr(meta.key)}">${label}</div>`;
   });
   html += "</div>";
 
@@ -654,19 +640,25 @@ function renderTimeline() {
     html += "</div></div>";
   }
 
-  html += "</div></div>";
+  html += "</div>";
+
+  if (showTodayMarker) {
+    html += `<div class="today-marker" style="left:${labelWidth}px;width:${trackWidthPx}px" title="Today — ${escapeAttr(todayLabel)}">
+      <span class="today-marker-line" style="left:${todayLineLeft - labelWidth}px"></span>
+    </div>`;
+  }
+
+  html += "</div>";
   scroll.innerHTML = html;
+  scroll._dayInfoMap = dayInfoMap;
   wireBarTooltips(scroll);
   wireColumnTooltips(scroll);
-  wireTodayMarkerScroll();
-  updateTodayMarker();
 
   if (viewport) {
     const upcomingCount = countDeliverablesInNextMonth(items, today);
     const viewportHeight = computeTimelineViewportHeight(upcomingCount, items.length);
     viewport.style.height = `${viewportHeight}px`;
     viewport.dataset.upcomingRows = String(upcomingCount);
-    viewport.style.setProperty("--timeline-label-width", `${labelWidth}px`);
   }
 
   updateZoomSliderBounds();
@@ -721,7 +713,6 @@ function wireTimelineDragScroll() {
     if (!dragging) return;
     viewport.scrollLeft = scrollStartLeft - (e.clientX - startX);
     viewport.scrollTop = scrollStartTop - (e.clientY - startY);
-    updateTodayMarker();
   });
 
   window.addEventListener("mouseup", () => {
@@ -733,24 +724,33 @@ function wireTimelineDragScroll() {
 
 function wireColumnTooltips(scroll) {
   const tooltip = document.getElementById("bar-tooltip");
-  if (!tooltip || !scroll) return;
+  const dayInfoMap = scroll?._dayInfoMap;
+  if (!tooltip || !scroll || !dayInfoMap) return;
 
   const hide = () => {
     tooltip.hidden = true;
+    tooltip.classList.remove("tooltip-day");
   };
 
-  scroll.querySelectorAll("[data-day-weight]").forEach((cell) => {
-    cell.addEventListener("mouseenter", (e) => {
-      const w = Number(cell.dataset.dayWeight);
-      const weightLabel = w > 0 ? `${w.toFixed(2)}%` : "0%";
-      tooltip.innerHTML = `
-        <p class="tooltip-weight">${escapeAttr(weightLabel)}</p>
-        <p class="tooltip-title">Total weight due this day</p>
-      `;
-      tooltip.hidden = false;
-      positionTooltip(tooltip, e.clientX, e.clientY);
+  const show = (cell, clientX, clientY) => {
+    const key = cell.dataset.dayKey;
+    const entry = dayInfoMap.get(key);
+    if (!entry) return;
+
+    tooltip.innerHTML = formatDayColumnTooltip({
+      dateLine: entry.dateLine,
+      weight: entry.weight,
+      count: entry.items.length,
+      items: entry.items,
     });
-    cell.addEventListener("mousemove", (e) => positionTooltip(tooltip, e.clientX, e.clientY));
+    tooltip.classList.add("tooltip-day");
+    tooltip.hidden = false;
+    positionTooltip(tooltip, clientX, clientY);
+  };
+
+  scroll.querySelectorAll("[data-day-key]").forEach((cell) => {
+    cell.addEventListener("mouseenter", (e) => show(cell, e.clientX, e.clientY));
+    cell.addEventListener("mousemove", (e) => show(cell, e.clientX, e.clientY));
     cell.addEventListener("mouseleave", hide);
   });
 }
@@ -764,6 +764,7 @@ function wireBarTooltips(container) {
   };
 
   const show = (bar, clientX, clientY) => {
+    tooltip.classList.remove("tooltip-day");
     const course = bar.dataset.course ?? "";
     const task = bar.dataset.task ?? "";
     const type = bar.dataset.type ?? "";
@@ -946,13 +947,6 @@ async function importJson() {
   document.getElementById("import-file")?.click();
 }
 
-async function resetToSeed() {
-  if (!confirm("Replace all deliverables with the built-in seed data?")) return;
-  deliverables = await loadSeed();
-  selectedCourses = new Set(uniqueCourses());
-  refresh();
-}
-
 async function init() {
   const persisted = await loadPersisted();
   if (persisted) {
@@ -971,7 +965,8 @@ async function init() {
     dataFilePath = await window.coursePlanner.getDataPath();
     const hint = document.getElementById("editor-hint");
     if (hint) {
-      hint.textContent = "Changes save automatically to your user data folder.";
+      hint.textContent =
+        "If no start date is set, the bar begins 10 days before the due date. Changes save automatically to your user data folder.";
     }
   }
 
@@ -981,8 +976,6 @@ async function init() {
   document.getElementById("btn-add-row")?.addEventListener("click", addRow);
   document.getElementById("btn-export")?.addEventListener("click", exportJson);
   document.getElementById("btn-import")?.addEventListener("click", importJson);
-  document.getElementById("btn-reset")?.addEventListener("click", resetToSeed);
-
   document.getElementById("import-file")?.addEventListener("change", async (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -996,8 +989,6 @@ async function init() {
   });
 
   document.getElementById("timeline-color")?.addEventListener("change", renderTimeline);
-  document.getElementById("course-select-all")?.addEventListener("click", selectAllCourses);
-  document.getElementById("course-select-none")?.addEventListener("click", selectNoCourses);
 }
 
 init().catch((err) => {

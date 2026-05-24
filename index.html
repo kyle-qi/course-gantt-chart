@@ -16,42 +16,40 @@
       <button type="button" id="btn-export" class="btn secondary">Export JSON</button>
       <button type="button" id="btn-import" class="btn secondary">Import JSON</button>
       <input type="file" id="import-file" accept="application/json" hidden />
-      <button type="button" id="btn-reset" class="btn ghost">Reset to seed</button>
     </div>
   </header>
 
   <main>
-    <div class="controls-row">
-      <label>Color by
-        <select id="timeline-color">
-          <option value="course">Course</option>
-          <option value="type">Type</option>
-        </select>
-      </label>
-
-      <div class="course-filter-panel">
-        <div class="course-filter-header">
-          <span class="filter-label">Show courses</span>
-          <div class="filter-actions">
-            <button type="button" id="course-select-all" class="btn-filter">Select all</button>
-            <button type="button" id="course-select-none" class="btn-filter">Clear</button>
+    <div class="timeline-toolbar">
+      <div class="toolbar-row toolbar-row-controls">
+        <div class="toolbar-controls">
+          <div class="toolbar-group toolbar-color">
+            <span class="toolbar-label">Color by</span>
+            <select id="timeline-color">
+              <option value="course">Course</option>
+              <option value="type">Type</option>
+            </select>
+          </div>
+          <div class="toolbar-group toolbar-zoom">
+            <span class="toolbar-label">Zoom</span>
+            <input type="range" id="timeline-zoom" min="8" max="56" value="20" step="1" />
           </div>
         </div>
+        <span id="storage-hint" class="hint toolbar-hint"></span>
+      </div>
+
+      <div class="toolbar-row toolbar-row-courses">
+        <span class="toolbar-label">Courses</span>
         <div id="course-filter-list" class="course-filter-list" role="group" aria-label="Course visibility"></div>
       </div>
 
-      <span id="storage-hint" class="hint"></span>
+      <div class="toolbar-row toolbar-row-legend">
+        <span class="toolbar-label">Legend</span>
+        <div id="timeline-legend" class="legend legend-inline"></div>
+      </div>
     </div>
 
-    <div id="timeline-legend" class="legend"></div>
     <div class="timeline-panel">
-      <div class="timeline-zoom-bar">
-        <label class="zoom-label">
-          <span>Timeline zoom</span>
-          <input type="range" id="timeline-zoom" min="8" max="56" value="20" step="1" />
-        </label>
-        <p class="hint timeline-note">If no start date is set, the bar begins 10 days before the due date. Darker columns = more weight due that day (hover a column for the total).</p>
-      </div>
       <div id="timeline-container" class="timeline-container">
         <div class="timeline-viewport" title="Drag to scroll the timeline">
           <div id="timeline-scroll" class="timeline-scroll"></div>
@@ -81,7 +79,7 @@
           <tbody id="editor-body"></tbody>
         </table>
       </div>
-      <p class="hint editor-hint" id="editor-hint">Changes save automatically.</p>
+      <p class="hint editor-hint" id="editor-hint">If no start date is set, the bar begins 10 days before the due date. Changes save automatically.</p>
     </section>
   </main>
 
