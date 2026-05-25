@@ -5,6 +5,7 @@
   "main": "electron/main.js",
   "scripts": {
     "start": "env -u ELECTRON_RUN_AS_NODE electron .",
+    "build:icon": "python3 scripts/build-icon.py",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --mac"
   },
