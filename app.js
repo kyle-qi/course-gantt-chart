@@ -431,21 +431,6 @@ function escapeAttr(s) {
 
 // --- course filter UI ---
 
-function setCourseSelection(courses) {
-  selectedCourses = new Set(courses);
-  savePersisted();
-  renderCourseFilter();
-  renderTimeline();
-}
-
-function selectAllCourses() {
-  setCourseSelection(uniqueCourses());
-}
-
-function clearCourseSelection() {
-  setCourseSelection([]);
-}
-
 function renderCourseFilter() {
   const list = document.getElementById("course-filter-list");
   if (!list) return;
@@ -539,7 +524,7 @@ function renderTimeline() {
       scroll,
       legendEl,
       viewport,
-      "No courses selected. Use the course checkboxes above or click <strong>All</strong>."
+      "No courses selected. Use the course checkboxes above."
     );
     return;
   }
@@ -598,7 +583,7 @@ function renderTimeline() {
 
   renderTimelineLegend(legendEl, items, colorMode);
 
-  let html = `<div class="timeline-wrapper" style="--label-width: ${labelWidth}px; --num-days: ${numDays}; --day-width: ${timelineDayWidth}px; width: ${timelineWidthPx}px">`;
+  let html = `<div class="timeline-wrapper" style="--label-width: ${labelWidth}px; --num-days: ${numDays}; --day-width: ${timelineDayWidth}px; --timeline-row-height: ${TIMELINE_ROW_HEIGHT_PX}px; --timeline-header-height: ${TIMELINE_HEADER_HEIGHT_PX}px; width: ${timelineWidthPx}px">`;
   html += `<div class="timeline-split timeline-days ${densityClass}">`;
 
   html += '<div class="timeline-tasks-col">';
@@ -1132,19 +1117,6 @@ async function importCsv() {
   });
 }
 
-async function resetToSeed() {
-  if (
-    !confirm(
-      "Replace all deliverables with the sample data in data/seed.json? This cannot be undone."
-    )
-  ) {
-    return;
-  }
-  deliverables = await loadSeed();
-  selectedCourses = new Set(uniqueCourses());
-  refresh();
-}
-
 async function init() {
   const persisted = await loadPersisted();
   if (persisted) {
@@ -1173,11 +1145,6 @@ async function init() {
   updateStorageHint();
 
   document.getElementById("btn-add-row")?.addEventListener("click", addRow);
-  document.getElementById("btn-select-all-courses")?.addEventListener("click", selectAllCourses);
-  document.getElementById("btn-clear-courses")?.addEventListener("click", clearCourseSelection);
-  document.getElementById("btn-reset-seed")?.addEventListener("click", () => {
-    resetToSeed().catch((err) => alert(`Reset failed: ${err.message}`));
-  });
   document.getElementById("btn-export-json")?.addEventListener("click", exportJson);
   document.getElementById("btn-export-csv")?.addEventListener("click", exportCsv);
   document.getElementById("btn-import-json")?.addEventListener("click", importJson);

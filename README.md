@@ -76,12 +76,11 @@ Use the desktop app for disk persistence.
 
 ## Using the app
 
-- **Courses** — toggle course pills; **All** / **Clear** select or hide every course on the timeline.  
+- **Courses** — toggle course pills to show or hide courses on the timeline.  
 - **Color by** — course or deliverable type.  
 - **Zoom** — timeline day width (saved with your data).  
 - **Deliverables** — edit the table; changes save automatically.  
-- **Export / Import JSON or CSV** — full backup (JSON) or Excel-friendly sheet (CSV).  
-- **Reset to seed** — replace all rows with `data/seed.json`.
+- **Export / Import JSON or CSV** — full backup (JSON) or Excel-friendly sheet (CSV).
 
 ---
 

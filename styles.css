@@ -79,11 +79,6 @@ main {
   background: var(--bg);
 }
 
-.btn-sm {
-  padding: 0.3rem 0.65rem;
-  font-size: 0.8rem;
-}
-
 .hint {
   color: var(--muted);
   font-size: 0.8rem;
@@ -170,25 +165,10 @@ main {
   padding-top: 0.35rem;
 }
 
-.course-filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 0.5rem;
-  flex: 1;
-  min-width: 0;
-}
-
 .toolbar-row-courses .course-filter-list,
 .toolbar-row-legend .legend {
   flex: 1;
   min-width: 0;
-}
-
-.course-filter-actions {
-  display: flex;
-  flex-shrink: 0;
-  gap: 0.35rem;
 }
 
 .toolbar-hint {
@@ -393,8 +373,10 @@ main {
   position: sticky;
   top: 0;
   z-index: 5;
-  padding: 0.3rem 0.65rem;
-  min-height: 1.75rem;
+  box-sizing: border-box;
+  height: var(--timeline-header-height, 36px);
+  min-height: var(--timeline-header-height, 36px);
+  padding: 0 0.65rem;
   display: flex;
   align-items: center;
   border-bottom: 1px solid var(--border);
@@ -405,9 +387,10 @@ main {
 }
 
 .timeline-task-label {
-  height: 2.125rem;
-  min-height: 2.125rem;
-  padding: 0.4rem 0.65rem;
+  box-sizing: border-box;
+  height: var(--timeline-row-height, 34px);
+  min-height: var(--timeline-row-height, 34px);
+  padding: 0 0.65rem;
   display: flex;
   align-items: center;
   white-space: nowrap;
@@ -463,6 +446,9 @@ main {
 
 .timeline-header {
   display: grid;
+  box-sizing: border-box;
+  height: var(--timeline-header-height, 36px);
+  min-height: var(--timeline-header-height, 36px);
   border-bottom: 1px solid var(--border);
   font-size: clamp(0.48rem, calc(var(--day-width, 12px) * 0.42), 0.68rem);
   color: var(--muted);
@@ -470,12 +456,17 @@ main {
   top: 0;
   z-index: 3;
   background: var(--surface);
+  align-items: stretch;
 }
 
 .timeline-days .timeline-tick-day {
   border-left: 1px solid #eef0f3;
   min-width: 0;
-  padding: 0.2rem 0.05rem;
+  height: 100%;
+  padding: 0 0.05rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   overflow: hidden;
   line-height: 1.15;
@@ -504,25 +495,18 @@ main {
 
 .timeline-days.timeline-dense .timeline-tick-day.has-label {
   font-size: clamp(0.42rem, calc(var(--day-width, 10px) * 0.36), 0.52rem);
-  padding: 0.15rem 0;
 }
 
 .timeline-days.timeline-tight .timeline-tick-day.has-label {
   font-size: clamp(0.4rem, calc(var(--day-width, 8px) * 0.34), 0.48rem);
 }
 
-.timeline-days.timeline-dense .timeline-header,
-.timeline-days.timeline-tight .timeline-header,
-.timeline-days.timeline-dense .timeline-tasks-header,
-.timeline-days.timeline-tight .timeline-tasks-header {
-  min-height: 2rem;
-}
-
 .timeline-chart-row {
   display: grid;
+  box-sizing: border-box;
   align-items: center;
-  height: 2.125rem;
-  min-height: 2.125rem;
+  height: var(--timeline-row-height, 34px);
+  min-height: var(--timeline-row-height, 34px);
   border-bottom: 1px solid #eef0f3;
   position: relative;
   z-index: 1;
@@ -551,7 +535,7 @@ main {
 
 .timeline-tick {
   border-left: 1px solid #eef0f3;
-  padding: 0.3rem 0;
+  padding: 0;
   text-align: center;
 }
 

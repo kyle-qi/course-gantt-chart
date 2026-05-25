@@ -14,7 +14,6 @@
       <button type="button" id="btn-export-csv" class="btn secondary">Export CSV</button>
       <button type="button" id="btn-import-json" class="btn secondary">Import JSON</button>
       <button type="button" id="btn-import-csv" class="btn secondary">Import CSV</button>
-      <button type="button" id="btn-reset-seed" class="btn secondary">Reset to seed</button>
       <input type="file" id="import-file-json" accept="application/json,.json" hidden />
       <input type="file" id="import-file-csv" accept="text/csv,.csv" hidden />
     </div>
@@ -41,13 +40,7 @@
 
       <div class="toolbar-row toolbar-row-courses">
         <span class="toolbar-label">Courses</span>
-        <div class="course-filter-row">
-          <div id="course-filter-list" class="course-filter-list" role="group" aria-label="Course visibility"></div>
-          <div class="course-filter-actions">
-            <button type="button" id="btn-select-all-courses" class="btn secondary btn-sm">All</button>
-            <button type="button" id="btn-clear-courses" class="btn secondary btn-sm">Clear</button>
-          </div>
-        </div>
+        <div id="course-filter-list" class="course-filter-list" role="group" aria-label="Course visibility"></div>
       </div>
 
       <div class="toolbar-row toolbar-row-legend">
