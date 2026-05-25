@@ -6,6 +6,6 @@ contextBridge.exposeInMainWorld("coursePlanner", {
   saveData: (payload) => ipcRenderer.invoke("save-data", payload),
   loadSeed: () => ipcRenderer.invoke("load-seed"),
   getDataPath: () => ipcRenderer.invoke("get-data-path"),
-  exportJson: (jsonText) => ipcRenderer.invoke("export-json", jsonText),
-  importJson: () => ipcRenderer.invoke("import-json"),
+  exportFile: (opts) => ipcRenderer.invoke("export-file", opts),
+  importFile: (opts) => ipcRenderer.invoke("import-file", opts),
 });

@@ -27,10 +27,10 @@ body {
 .app-header {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1.25rem 1.5rem;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -38,26 +38,14 @@ body {
 body.is-desktop .app-header.window-drag {
   -webkit-app-region: drag;
   padding-top: 2.75rem;
+  min-height: 3.25rem;
 }
 
 body.is-desktop .window-drag .header-actions,
 body.is-desktop .window-drag button,
 body.is-desktop .window-drag input,
-body.is-desktop .window-drag select,
-body.is-desktop .window-drag label.file-label {
+body.is-desktop .window-drag select {
   -webkit-app-region: no-drag;
-}
-
-.app-header h1 {
-  margin: 0;
-  font-size: 1.35rem;
-  font-weight: 600;
-}
-
-.subtitle {
-  margin: 0.25rem 0 0;
-  color: var(--muted);
-  font-size: 0.9rem;
 }
 
 .header-actions {
@@ -87,19 +75,13 @@ main {
   color: #fff;
 }
 
-.btn.secondary:hover,
-.btn.ghost:hover {
+.btn.secondary:hover {
   background: var(--bg);
 }
 
-.btn.ghost {
-  border-color: transparent;
-  color: var(--muted);
-}
-
-.file-label {
-  display: inline-flex;
-  align-items: center;
+.btn-sm {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.8rem;
 }
 
 .hint {
@@ -188,10 +170,25 @@ main {
   padding-top: 0.35rem;
 }
 
+.course-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
 .toolbar-row-courses .course-filter-list,
 .toolbar-row-legend .legend {
   flex: 1;
   min-width: 0;
+}
+
+.course-filter-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.35rem;
 }
 
 .toolbar-hint {
@@ -376,7 +373,59 @@ main {
   min-width: min-content;
 }
 
-.timeline {
+.timeline-split {
+  display: flex;
+  align-items: flex-start;
+  min-width: min-content;
+}
+
+.timeline-tasks-col {
+  flex: 0 0 var(--label-width, 200px);
+  width: var(--label-width, 200px);
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+
+.timeline-tasks-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 0.3rem 0.65rem;
+  min-height: 1.75rem;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  font-size: clamp(0.48rem, calc(var(--day-width, 12px) * 0.42), 0.68rem);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.timeline-task-label {
+  height: 2.125rem;
+  min-height: 2.125rem;
+  padding: 0.4rem 0.65rem;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 1px solid #eef0f3;
+  background: var(--surface);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.timeline-chart-col {
+  flex: 0 0 auto;
+  position: relative;
+  min-width: 0;
+}
+
+.timeline-chart-inner {
   position: relative;
   width: 100%;
 }
@@ -389,10 +438,6 @@ main {
   pointer-events: none;
 }
 
-.timeline-weight-spacer {
-  background: var(--surface);
-}
-
 .timeline-weight-day {
   border-left: 1px solid transparent;
   pointer-events: auto;
@@ -401,11 +446,9 @@ main {
 
 .today-marker {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  z-index: 1;
+  inset: 0;
+  z-index: 2;
   pointer-events: none;
-  overflow: hidden;
 }
 
 .today-marker-line {
@@ -425,7 +468,7 @@ main {
   color: var(--muted);
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 3;
   background: var(--surface);
 }
 
@@ -469,45 +512,27 @@ main {
 }
 
 .timeline-days.timeline-dense .timeline-header,
-.timeline-days.timeline-tight .timeline-header {
+.timeline-days.timeline-tight .timeline-header,
+.timeline-days.timeline-dense .timeline-tasks-header,
+.timeline-days.timeline-tight .timeline-tasks-header {
   min-height: 2rem;
 }
 
-.timeline-row {
+.timeline-chart-row {
   display: grid;
   align-items: center;
   height: 2.125rem;
   min-height: 2.125rem;
   border-bottom: 1px solid #eef0f3;
-  font-size: 0.8rem;
   position: relative;
   z-index: 1;
-  background: transparent;
-}
-
-.timeline-label {
-  padding: 0.4rem 0.65rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  border-right: 1px solid var(--border);
-  font-weight: 500;
-  position: sticky;
-  left: 0;
-  z-index: 3;
-  background: var(--surface);
-}
-
-.timeline-header .timeline-label {
-  z-index: 4;
-  background: var(--surface);
 }
 
 .timeline-track {
   position: relative;
+  grid-column: 1 / -1;
   height: 1.35rem;
   margin: 0;
-  background: transparent;
 }
 
 .timeline-bar {

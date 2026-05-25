@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+# Starts the Electron app when dependencies are installed; otherwise serves static files for browser mode.
 set -euo pipefail
 cd "$(dirname "$0")"
 
 if [[ -x node_modules/.bin/electron ]]; then
-  exec npm start
+  exec env -u ELECTRON_RUN_AS_NODE npm start
 fi
 
 PORT="${PORT:-8765}"

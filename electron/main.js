@@ -1,8 +1,9 @@
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, nativeImage } = require("electron");
 const path = require("path");
 const fs = require("fs").promises;
 
 const ROOT = path.join(__dirname, "..");
+const ICON_PATH = path.join(ROOT, "build", "icon.png");
 const DATA_FILE = "deliverables.json";
 
 function dataPath() {
@@ -28,12 +29,23 @@ async function writeDataFile(payload) {
   await fs.writeFile(dataPath(), JSON.stringify(payload, null, 2), "utf8");
 }
 
+function appIcon() {
+  const icon = nativeImage.createFromPath(ICON_PATH);
+  return icon.isEmpty() ? undefined : icon;
+}
+
+function setDockIcon() {
+  const icon = appIcon();
+  if (icon && process.platform === "darwin" && app.dock) app.dock.setIcon(icon);
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 900,
     minWidth: 800,
     minHeight: 600,
+    icon: appIcon(),
     title: "Course Timeline",
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     trafficLightPosition: process.platform === "darwin" ? { x: 14, y: 14 } : undefined,
@@ -48,6 +60,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  setDockIcon();
   createWindow();
 
   app.on("activate", () => {
@@ -73,24 +86,28 @@ ipcMain.handle("load-seed", async () => {
 
 ipcMain.handle("get-data-path", () => dataPath());
 
-ipcMain.handle("export-json", async (_event, jsonText) => {
+ipcMain.handle("export-file", async (_event, { text, defaultPath, filters, title }) => {
   const { canceled, filePath } = await dialog.showSaveDialog({
-    title: "Export deliverables",
-    defaultPath: "course-deliverables.json",
-    filters: [{ name: "JSON", extensions: ["json"] }],
+    title: title ?? "Export deliverables",
+    defaultPath: defaultPath ?? "course-deliverables.json",
+    filters: filters ?? [{ name: "JSON", extensions: ["json"] }],
   });
   if (canceled || !filePath) return { canceled: true };
-  await fs.writeFile(filePath, jsonText, "utf8");
+  await fs.writeFile(filePath, text, "utf8");
   return { canceled: false, filePath };
 });
 
-ipcMain.handle("import-json", async () => {
+ipcMain.handle("import-file", async (_event, { filters, title }) => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
-    title: "Import deliverables",
-    filters: [{ name: "JSON", extensions: ["json"] }],
+    title: title ?? "Import deliverables",
+    filters: filters ?? [{ name: "JSON", extensions: ["json"] }],
     properties: ["openFile"],
   });
   if (canceled || !filePaths?.length) return { canceled: true };
-  const raw = await fs.readFile(filePaths[0], "utf8");
-  return { canceled: false, data: JSON.parse(raw) };
+  try {
+    const raw = await fs.readFile(filePaths[0], "utf8");
+    return { canceled: false, text: raw };
+  } catch (err) {
+    throw new Error(err.message ?? "Could not read file");
+  }
 });

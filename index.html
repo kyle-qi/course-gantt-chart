@@ -4,18 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Course Timeline</title>
+  <link rel="icon" href="build/icon.png" type="image/png" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="app-header window-drag">
-    <div>
-      <h1>Course Timeline</h1>
-      <p class="subtitle">Deliverables across the term</p>
-    </div>
     <div class="header-actions">
-      <button type="button" id="btn-export" class="btn secondary">Export JSON</button>
-      <button type="button" id="btn-import" class="btn secondary">Import JSON</button>
-      <input type="file" id="import-file" accept="application/json" hidden />
+      <button type="button" id="btn-export-json" class="btn secondary">Export JSON</button>
+      <button type="button" id="btn-export-csv" class="btn secondary">Export CSV</button>
+      <button type="button" id="btn-import-json" class="btn secondary">Import JSON</button>
+      <button type="button" id="btn-import-csv" class="btn secondary">Import CSV</button>
+      <button type="button" id="btn-reset-seed" class="btn secondary">Reset to seed</button>
+      <input type="file" id="import-file-json" accept="application/json,.json" hidden />
+      <input type="file" id="import-file-csv" accept="text/csv,.csv" hidden />
     </div>
   </header>
 
@@ -40,7 +41,13 @@
 
       <div class="toolbar-row toolbar-row-courses">
         <span class="toolbar-label">Courses</span>
-        <div id="course-filter-list" class="course-filter-list" role="group" aria-label="Course visibility"></div>
+        <div class="course-filter-row">
+          <div id="course-filter-list" class="course-filter-list" role="group" aria-label="Course visibility"></div>
+          <div class="course-filter-actions">
+            <button type="button" id="btn-select-all-courses" class="btn secondary btn-sm">All</button>
+            <button type="button" id="btn-clear-courses" class="btn secondary btn-sm">Clear</button>
+          </div>
+        </div>
       </div>
 
       <div class="toolbar-row toolbar-row-legend">
@@ -50,7 +57,7 @@
     </div>
 
     <div class="timeline-panel">
-      <div id="timeline-container" class="timeline-container">
+      <div class="timeline-container">
         <div class="timeline-viewport" title="Drag to scroll the timeline">
           <div id="timeline-scroll" class="timeline-scroll"></div>
         </div>

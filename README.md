@@ -6,51 +6,32 @@ A macOS desktop app for viewing course deliverables on a timeline and editing th
 
 ## Install the app (macOS)
 
-### What you need first
+### Requirements
 
 1. **macOS** 11 or later  
 2. **[Node.js](https://nodejs.org/)** 18 or newer (includes `npm`)  
-   - Check: open Terminal and run `node -v`  
-   - If missing, download the **LTS** installer from [nodejs.org](https://nodejs.org/) and run it, then quit and reopen Terminal.
+   - Check: `node -v`  
+   - If missing, install the **LTS** build from [nodejs.org](https://nodejs.org/) and reopen Terminal.
 
-### Step 1 — Open the project folder in Terminal
+### Build steps
 
 ```bash
 cd "/path/to/course-planner"
-```
-
-Use the real path where you cloned or saved this repo (e.g. `~/Documents/course-planner`).
-
-### Step 2 — Install dependencies (once per machine)
-
-```bash
 npm install
-```
-
-This downloads Electron and build tools. It can take a few minutes the first time.
-
-### Step 3 — Build the macOS app
-
-```bash
 npm run dist
 ```
 
-When it finishes, look in the `dist/` folder:
+When the build finishes, open `dist/`:
 
-| Output | What to do |
-|--------|------------|
-| `Course Timeline-1.0.0.dmg` | Double-click to mount, drag **Course Timeline** into **Applications** |
-| `mac-arm64/Course Timeline.app` | Run directly (Apple Silicon) |
-| `mac/Course Timeline.app` | Run directly (Intel Mac) |
+| Output | Notes |
+|--------|--------|
+| `Course Timeline-1.0.0-arm64.dmg` | Apple Silicon installer (name may include `-arm64` on M-series Macs) |
+| `Course Timeline-1.0.0-arm64-mac.zip` | Zipped app |
+| `mac-arm64/Course Timeline.app` | Run directly without installing |
 
-### Step 4 — Open the app
+If macOS blocks the app: **System Settings → Privacy & Security → Open Anyway**, or right-click the app → **Open**.
 
-1. Open **Applications** (or the `.app` in `dist/`).  
-2. If macOS says the app is from an unidentified developer:  
-   - **System Settings → Privacy & Security** → **Open Anyway**, or  
-   - Right-click the app → **Open** → **Open** again.
-
-### Step 5 — Your data
+### Where data is stored
 
 Edits save automatically to:
 
@@ -58,42 +39,49 @@ Edits save automatically to:
 ~/Library/Application Support/course-timeline/deliverables.json
 ```
 
-You do not need to export manually unless you want a backup.
+Export JSON when you want a backup or to move data to another Mac.
 
 ---
 
-## Run without installing (development)
-
-Useful while changing the project or before building a `.app`:
+## Development
 
 ```bash
-npm install   # if you have not already
-npm start
+npm install   # once per machine
+npm start     # Electron desktop window
 ```
 
-Opens the same UI in a desktop window (not a browser tab).
+`npm start` unsets `ELECTRON_RUN_AS_NODE` so the app runs correctly when launched from tooling that sets that variable.
 
----
+Other scripts:
 
-## Using the app
-
-- **Show courses** — tap course pills to show any combination on the timeline; **Select all** / **Clear** for quick changes.  
-- **Color by** — course or deliverable type.  
-- **Deliverables** — edit the table at the bottom; changes persist after you quit.  
-- **Export / Import JSON** — backup or move data to another Mac.  
-- **Reset to seed** — restore the sample courses in `data/seed.json`.
+| Script | Purpose |
+|--------|---------|
+| `npm run pack` | Unpacked `.app` in `dist/` (faster than a full DMG build) |
+| `npm run dist` | DMG + ZIP for distribution |
 
 ---
 
 ## Browser mode (optional)
 
-If Node is not installed, you can use a simple browser version (data stays in the browser only):
+`./run.sh` starts the **desktop app** when dependencies are installed. If Electron is not available, it falls back to a local HTTP server (default port **8765**); data is stored in the browser only.
 
 ```bash
 ./run.sh
+# or: PORT=9000 ./run.sh
 ```
 
-Then open the URL shown in Terminal. For persistent disk storage, use the desktop app above.
+Use the desktop app for disk persistence.
+
+---
+
+## Using the app
+
+- **Courses** — toggle course pills; **All** / **Clear** select or hide every course on the timeline.  
+- **Color by** — course or deliverable type.  
+- **Zoom** — timeline day width (saved with your data).  
+- **Deliverables** — edit the table; changes save automatically.  
+- **Export / Import JSON or CSV** — full backup (JSON) or Excel-friendly sheet (CSV).  
+- **Reset to seed** — replace all rows with `data/seed.json`.
 
 ---
 
@@ -102,20 +90,36 @@ Then open the URL shown in Terminal. For persistent disk storage, use the deskto
 | Problem | Fix |
 |---------|-----|
 | `command not found: npm` | Install Node.js from [nodejs.org](https://nodejs.org/) |
-| `npm run dist` fails | Run `npm install` again; ensure you are in the `course-planner` folder |
+| `npm run dist` fails | Run `npm install` in the project folder |
 | App won’t open (security) | Right-click → **Open**, or allow in **Privacy & Security** |
-| Timeline empty | Select at least one course pill; ensure rows have **End** dates |
-| Lost edits (browser mode) | Use the desktop app; browser data is separate from the `.app` |
+| Timeline empty | Select at least one course; rows need an **End** date |
+| `app.whenReady` error from `npm start` | Run from Terminal in the project folder; avoid `ELECTRON_RUN_AS_NODE=1` |
+| Lost edits in browser mode | Use the desktop app; browser storage is separate |
 
 ---
 
 ## Data format
 
+Persisted JSON (desktop and browser):
+
 ```json
 {
-  "deliverables": [ ... ],
-  "selectedCourses": ["ECE457A", "ECE481"]
+  "deliverables": [
+    {
+      "id": "…",
+      "course": "ECE457A",
+      "type": "Assignment",
+      "task": "HW1",
+      "startDate": "2026-01-10",
+      "endDate": "2026-01-20",
+      "weight": 5
+    }
+  ],
+  "selectedCourses": ["ECE457A", "ECE481"],
+  "timelineDayWidth": 20
 }
 ```
 
-Seed data: `data/seed.json`
+CSV import/export uses columns: **Course**, **Type**, **Task**, **Start**, **End**, **Weight** (header aliases like `Due Date` are accepted).
+
+Sample data: `data/seed.json` (array of deliverable rows).

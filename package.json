@@ -4,13 +4,14 @@
   "description": "Course deliverables timeline for macOS",
   "main": "electron/main.js",
   "scripts": {
-    "start": "electron .",
+    "start": "env -u ELECTRON_RUN_AS_NODE electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --mac"
   },
   "build": {
     "appId": "com.courseplanner.timeline",
     "productName": "Course Timeline",
+    "icon": "build/icon.icns",
     "mac": {
       "category": "public.app-category.productivity",
       "target": ["dmg", "zip"]
@@ -19,6 +20,7 @@
       "index.html",
       "styles.css",
       "app.js",
+      "build/icon.png",
       "data/**/*",
       "electron/**/*"
     ],

@@ -1,5 +1,4 @@
 const STORAGE_KEY = "course-planner-deliverables";
-const SELECTION_KEY = "course-planner-selected-courses";
 
 const COURSE_COLORS = {
   ECE457A: "#2563eb",
@@ -52,32 +51,27 @@ async function loadSeed() {
   return raw.map(normalizeRow);
 }
 
+function parseStoredPayload(stored) {
+  if (Array.isArray(stored)) {
+    return { deliverables: stored.map(normalizeRow), selectedCourses: null, timelineDayWidth: null };
+  }
+  return {
+    deliverables: (stored.deliverables ?? []).map(normalizeRow),
+    selectedCourses: stored.selectedCourses ?? null,
+    timelineDayWidth: stored.timelineDayWidth ?? null,
+  };
+}
+
 async function loadPersisted() {
   if (desktop) {
     const stored = await window.coursePlanner.loadData();
-    if (!stored) return null;
-    if (Array.isArray(stored)) {
-      return { deliverables: stored.map(normalizeRow), selectedCourses: null, timelineDayWidth: null };
-    }
-    return {
-      deliverables: (stored.deliverables ?? []).map(normalizeRow),
-      selectedCourses: stored.selectedCourses ?? null,
-      timelineDayWidth: stored.timelineDayWidth ?? null,
-    };
+    return stored ? parseStoredPayload(stored) : null;
   }
 
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return { deliverables: parsed.map(normalizeRow), selectedCourses: null, timelineDayWidth: null };
-    }
-    return {
-      deliverables: (parsed.deliverables ?? []).map(normalizeRow),
-      selectedCourses: parsed.selectedCourses ?? null,
-      timelineDayWidth: parsed.timelineDayWidth ?? null,
-    };
+    return parseStoredPayload(JSON.parse(raw));
   } catch {
     return null;
   }
@@ -106,7 +100,6 @@ async function savePersisted() {
     dataFilePath = await window.coursePlanner.saveData(payload);
   } else {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    localStorage.setItem(SELECTION_KEY, JSON.stringify([...selectedCourses]));
   }
 
   updateStorageHint();
@@ -314,22 +307,10 @@ function formatDayTick(date, tickEvery, dayWidthPx) {
   const day = date.getDate();
   const month = date.toLocaleDateString(undefined, { month: "short" });
 
-  if (dayWidthPx < 5) {
-    return date.getDate() === 1 ? month : "";
+  if (dayWidthPx < 5 || tickEvery >= 28) {
+    return day === 1 ? month : "";
   }
-  if (tickEvery >= 28) {
-    return date.getDate() === 1 ? month : "";
-  }
-  if (tickEvery >= 14) {
-    return date.getDate() === 1 ? `${month} ${day}` : String(day);
-  }
-  if (tickEvery >= 7) {
-    return date.getDate() === 1 ? `${month} ${day}` : String(day);
-  }
-  if (tickEvery >= 2) {
-    return date.getDate() === 1 ? `${month} ${day}` : String(day);
-  }
-  return date.getDate() === 1 ? `${month} ${day}` : String(day);
+  return day === 1 ? `${month} ${day}` : String(day);
 }
 
 function timelineDensityClass(dayWidth) {
@@ -450,6 +431,21 @@ function escapeAttr(s) {
 
 // --- course filter UI ---
 
+function setCourseSelection(courses) {
+  selectedCourses = new Set(courses);
+  savePersisted();
+  renderCourseFilter();
+  renderTimeline();
+}
+
+function selectAllCourses() {
+  setCourseSelection(uniqueCourses());
+}
+
+function clearCourseSelection() {
+  setCourseSelection([]);
+}
+
 function renderCourseFilter() {
   const list = document.getElementById("course-filter-list");
   if (!list) return;
@@ -491,8 +487,46 @@ function renderCourseFilter() {
 
 // --- timeline ---
 
+function timelineColorMode() {
+  return document.getElementById("timeline-color")?.value ?? "course";
+}
+
+function buildTimelineItems() {
+  return deliverables
+    .filter((d) => d.task && d.endDate && coursePassesFilter(d.course))
+    .map((d) => ({ ...d, range: effectiveRange(d) }))
+    .filter((d) => d.range.start && d.range.end)
+    .sort(
+      (a, b) =>
+        a.range.start - b.range.start ||
+        a.course.localeCompare(b.course) ||
+        a.task.localeCompare(b.task)
+    );
+}
+
+function showTimelineEmpty(scroll, legendEl, viewport, message) {
+  scroll.innerHTML = `<p class="hint empty-msg">${message}</p>`;
+  scroll._dayInfoMap = null;
+  if (legendEl) legendEl.innerHTML = "";
+  if (viewport) {
+    viewport.style.height = "";
+    viewport.classList.add("is-empty");
+  }
+}
+
+function renderTimelineLegend(legendEl, items, colorMode) {
+  if (!legendEl) return;
+  const keys = [...new Set(items.map((d) => (colorMode === "course" ? d.course : d.type)))];
+  legendEl.innerHTML = keys
+    .map(
+      (k) =>
+        `<span class="legend-item"><span class="legend-swatch" style="background:${colorFor(k, colorMode)}"></span>${escapeAttr(k)}</span>`
+    )
+    .join("");
+}
+
 function renderTimeline() {
-  const colorMode = document.getElementById("timeline-color")?.value ?? "course";
+  const colorMode = timelineColorMode();
   const scroll = document.getElementById("timeline-scroll");
   const viewport = document.querySelector(".timeline-viewport");
   const legendEl = document.getElementById("timeline-legend");
@@ -501,35 +535,23 @@ function renderTimeline() {
   wireTimelineZoom();
 
   if (selectedCourses.size === 0) {
-    scroll.innerHTML =
-      '<p class="hint empty-msg">No courses selected. Use the course checkboxes above or click “All”.</p>';
-    if (legendEl) legendEl.innerHTML = "";
-    if (viewport) viewport.style.height = "";
-    viewport?.classList.add("is-empty");
+    showTimelineEmpty(
+      scroll,
+      legendEl,
+      viewport,
+      "No courses selected. Use the course checkboxes above or click <strong>All</strong>."
+    );
     return;
   }
 
-  const items = deliverables
-    .filter((d) => d.task && d.endDate)
-    .filter((d) => coursePassesFilter(d.course))
-    .map((d) => {
-      const range = effectiveRange(d);
-      return { ...d, range };
-    })
-    .filter((d) => d.range.start && d.range.end)
-    .sort(
-      (a, b) =>
-        a.range.start - b.range.start ||
-        a.course.localeCompare(b.course) ||
-        a.task.localeCompare(b.task)
-    );
-
+  const items = buildTimelineItems();
   if (!items.length) {
-    scroll.innerHTML =
-      '<p class="hint empty-msg">No deliverables for the selected courses with due dates.</p>';
-    if (legendEl) legendEl.innerHTML = "";
-    if (viewport) viewport.style.height = "";
-    viewport?.classList.add("is-empty");
+    showTimelineEmpty(
+      scroll,
+      legendEl,
+      viewport,
+      "No deliverables for the selected courses with due dates."
+    );
     return;
   }
 
@@ -558,7 +580,7 @@ function renderTimeline() {
   const timelineWidthPx = labelWidth + trackWidthPx;
   const tickEvery = computeTickInterval(timelineDayWidth);
   const densityClass = timelineDensityClass(timelineDayWidth);
-  const gridCols = `${labelWidth}px repeat(${numDays}, ${timelineDayWidth}px)`;
+  const gridColsChart = `repeat(${numDays}, ${timelineDayWidth}px)`;
 
   const today = startOfDay(new Date());
   const todayLabel = today.toLocaleDateString(undefined, {
@@ -569,34 +591,35 @@ function renderTimeline() {
 
   const showTodayMarker = today >= minDate && today <= maxDate;
   const todayLineLeft =
-    labelWidth + dayOffset(minDate, today) * timelineDayWidth + timelineDayWidth / 2;
+    dayOffset(minDate, today) * timelineDayWidth + timelineDayWidth / 2;
 
   const dayInfoMap = buildDayInfoMap(items, days);
   const maxDayWeight = Math.max(0, ...[...dayInfoMap.values()].map((e) => e.weight));
 
-  const legendKeys = [...new Set(items.map((d) => (colorMode === "course" ? d.course : d.type)))];
-  if (legendEl) {
-    legendEl.innerHTML = legendKeys
-      .map(
-        (k) =>
-          `<span class="legend-item"><span class="legend-swatch" style="background:${colorFor(k, colorMode)}"></span>${k}</span>`
-      )
-      .join("");
-  }
+  renderTimelineLegend(legendEl, items, colorMode);
 
   let html = `<div class="timeline-wrapper" style="--label-width: ${labelWidth}px; --num-days: ${numDays}; --day-width: ${timelineDayWidth}px; width: ${timelineWidthPx}px">`;
-  html += `<div class="timeline timeline-days ${densityClass}">`;
+  html += `<div class="timeline-split timeline-days ${densityClass}">`;
 
-  html += `<div class="timeline-weight-bg" style="grid-template-columns:${gridCols}">`;
-  html += '<div class="timeline-weight-spacer"></div>';
+  html += '<div class="timeline-tasks-col">';
+  html += '<div class="timeline-tasks-header">Task</div>';
+  for (const d of items) {
+    const label = `${d.course} · ${d.task}`;
+    html += `<div class="timeline-task-label" title="${escapeAttr(label)}">${label}</div>`;
+  }
+  html += "</div>";
+
+  html += `<div class="timeline-chart-col" style="width:${trackWidthPx}px">`;
+  html += '<div class="timeline-chart-inner">';
+
+  html += `<div class="timeline-weight-bg" style="grid-template-columns:${gridColsChart}">`;
   days.forEach((day) => {
     const meta = dayColumnMeta(day, dayInfoMap, maxDayWeight);
     html += `<div class="timeline-weight-day" style="${meta.style}" data-day-key="${escapeAttr(meta.key)}"></div>`;
   });
   html += "</div>";
 
-  html += `<div class="timeline-header" style="grid-template-columns:${gridCols}">`;
-  html += '<div class="timeline-label">Task</div>';
+  html += `<div class="timeline-header" style="grid-template-columns:${gridColsChart}">`;
   days.forEach((day, i) => {
     const showLabel = i % tickEvery === 0;
     const isMonthStart = day.getDate() === 1;
@@ -623,13 +646,11 @@ function renderTimeline() {
     const spanDays = countDaysInclusive(rangeStart, rangeEnd);
     const widthPct = Math.max(100 / numDays, (spanDays / numDays) * 100);
     const color = colorFor(colorMode === "course" ? d.course : d.type, colorMode);
-    const label = `${d.course} · ${d.task}`;
     const startStr = formatDateInput(d.range.start);
     const endStr = formatDateInput(d.range.end);
 
-    html += `<div class="timeline-row" style="grid-template-columns:${gridCols}">`;
-    html += `<div class="timeline-label" title="${escapeAttr(label)}">${label}</div>`;
-    html += '<div class="timeline-track" style="grid-column: 2 / -1;">';
+    html += `<div class="timeline-chart-row" style="grid-template-columns:${gridColsChart}">`;
+    html += '<div class="timeline-track">';
     html += `<div class="timeline-bar" style="left:${leftPct}%;width:${widthPct}%;background:${color}"
       data-course="${escapeAttr(d.course)}"
       data-task="${escapeAttr(d.task)}"
@@ -640,15 +661,13 @@ function renderTimeline() {
     html += "</div></div>";
   }
 
-  html += "</div>";
-
   if (showTodayMarker) {
-    html += `<div class="today-marker" style="left:${labelWidth}px;width:${trackWidthPx}px" title="Today — ${escapeAttr(todayLabel)}">
-      <span class="today-marker-line" style="left:${todayLineLeft - labelWidth}px"></span>
+    html += `<div class="today-marker" title="Today — ${escapeAttr(todayLabel)}">
+      <span class="today-marker-line" style="left:${todayLineLeft}px"></span>
     </div>`;
   }
 
-  html += "</div>";
+  html += "</div></div></div></div>";
   scroll.innerHTML = html;
   scroll._dayInfoMap = dayInfoMap;
   wireBarTooltips(scroll);
@@ -722,71 +741,63 @@ function wireTimelineDragScroll() {
   });
 }
 
-function wireColumnTooltips(scroll) {
+function wireHoverTooltips(container, selector, { onShow, onHide }) {
   const tooltip = document.getElementById("bar-tooltip");
-  const dayInfoMap = scroll?._dayInfoMap;
-  if (!tooltip || !scroll || !dayInfoMap) return;
+  if (!tooltip || !container) return;
 
   const hide = () => {
     tooltip.hidden = true;
-    tooltip.classList.remove("tooltip-day");
+    onHide?.(tooltip);
   };
 
-  const show = (cell, clientX, clientY) => {
-    const key = cell.dataset.dayKey;
-    const entry = dayInfoMap.get(key);
-    if (!entry) return;
+  container.querySelectorAll(selector).forEach((el) => {
+    const show = (e) => {
+      if (!onShow(tooltip, el)) return;
+      tooltip.hidden = false;
+      positionTooltip(tooltip, e.clientX, e.clientY);
+    };
+    el.addEventListener("mouseenter", show);
+    el.addEventListener("mousemove", show);
+    el.addEventListener("mouseleave", hide);
+  });
+}
 
-    tooltip.innerHTML = formatDayColumnTooltip({
-      dateLine: entry.dateLine,
-      weight: entry.weight,
-      count: entry.items.length,
-      items: entry.items,
-    });
-    tooltip.classList.add("tooltip-day");
-    tooltip.hidden = false;
-    positionTooltip(tooltip, clientX, clientY);
-  };
+function wireColumnTooltips(scroll) {
+  const dayInfoMap = scroll?._dayInfoMap;
+  if (!dayInfoMap) return;
 
-  scroll.querySelectorAll("[data-day-key]").forEach((cell) => {
-    cell.addEventListener("mouseenter", (e) => show(cell, e.clientX, e.clientY));
-    cell.addEventListener("mousemove", (e) => show(cell, e.clientX, e.clientY));
-    cell.addEventListener("mouseleave", hide);
+  wireHoverTooltips(scroll, "[data-day-key]", {
+    onHide: (tooltip) => tooltip.classList.remove("tooltip-day"),
+    onShow: (tooltip, cell) => {
+      const entry = dayInfoMap.get(cell.dataset.dayKey);
+      if (!entry) return false;
+      tooltip.innerHTML = formatDayColumnTooltip({
+        dateLine: entry.dateLine,
+        weight: entry.weight,
+        count: entry.items.length,
+        items: entry.items,
+      });
+      tooltip.classList.add("tooltip-day");
+      return true;
+    },
   });
 }
 
 function wireBarTooltips(container) {
-  const tooltip = document.getElementById("bar-tooltip");
-  if (!tooltip) return;
-
-  const hide = () => {
-    tooltip.hidden = true;
-  };
-
-  const show = (bar, clientX, clientY) => {
-    tooltip.classList.remove("tooltip-day");
-    const course = bar.dataset.course ?? "";
-    const task = bar.dataset.task ?? "";
-    const type = bar.dataset.type ?? "";
-    const weight = Number(bar.dataset.weight);
-    const start = bar.dataset.start ?? "";
-    const end = bar.dataset.end ?? "";
-    const weightLabel = Number.isFinite(weight) ? `${weight}%` : "—";
-
-    tooltip.innerHTML = `
-      <p class="tooltip-weight">${escapeAttr(weightLabel)}</p>
-      <p class="tooltip-title">${escapeAttr(course)} · ${escapeAttr(task)}</p>
-      <p class="tooltip-meta">${escapeAttr(type)}</p>
-      <p class="tooltip-dates">${escapeAttr(start)} → ${escapeAttr(end)}</p>
-    `;
-    tooltip.hidden = false;
-    positionTooltip(tooltip, clientX, clientY);
-  };
-
-  container.querySelectorAll(".timeline-bar").forEach((bar) => {
-    bar.addEventListener("mouseenter", (e) => show(bar, e.clientX, e.clientY));
-    bar.addEventListener("mousemove", (e) => show(bar, e.clientX, e.clientY));
-    bar.addEventListener("mouseleave", hide);
+  wireHoverTooltips(container, ".timeline-bar", {
+    onHide: (tooltip) => tooltip.classList.remove("tooltip-day"),
+    onShow: (tooltip, bar) => {
+      tooltip.classList.remove("tooltip-day");
+      const weight = Number(bar.dataset.weight);
+      const weightLabel = Number.isFinite(weight) ? `${weight}%` : "—";
+      tooltip.innerHTML = `
+        <p class="tooltip-weight">${escapeAttr(weightLabel)}</p>
+        <p class="tooltip-title">${escapeAttr(bar.dataset.course ?? "")} · ${escapeAttr(bar.dataset.task ?? "")}</p>
+        <p class="tooltip-meta">${escapeAttr(bar.dataset.type ?? "")}</p>
+        <p class="tooltip-dates">${escapeAttr(bar.dataset.start ?? "")} → ${escapeAttr(bar.dataset.end ?? "")}</p>
+      `;
+      return true;
+    },
   });
 }
 
@@ -819,7 +830,7 @@ function renderEditor() {
   if (!tbody) return;
   tbody.innerHTML = "";
 
-  deliverables.forEach((row, index) => {
+  deliverables.forEach((row) => {
     const tr = document.createElement("tr");
     tr.dataset.id = row.id;
 
@@ -834,8 +845,8 @@ function renderEditor() {
     `;
 
     tr.querySelectorAll("input").forEach((input) => {
-      input.addEventListener("change", () => commitRowFromDom(tr, index));
-      input.addEventListener("blur", () => commitRowFromDom(tr, index));
+      input.addEventListener("change", () => commitRowFromDom(tr));
+      input.addEventListener("blur", () => commitRowFromDom(tr));
     });
 
     tr.querySelector('[data-action="delete"]')?.addEventListener("click", () => {
@@ -857,7 +868,10 @@ function renderEditor() {
     .join("");
 }
 
-function commitRowFromDom(tr, index) {
+function commitRowFromDom(tr) {
+  const index = deliverables.findIndex((d) => d.id === tr.dataset.id);
+  if (index < 0) return;
+
   const get = (field) => tr.querySelector(`[data-field="${field}"]`)?.value ?? "";
 
   deliverables[index] = normalizeRow({
@@ -889,38 +903,172 @@ function addRow() {
 }
 
 function refresh(opts = {}) {
-  savePersisted();
+  if (opts.save !== false) savePersisted();
   renderCourseFilter();
   renderTimeline();
   if (!opts.skipEditor) renderEditor();
 }
 
-async function exportJson() {
-  const text = JSON.stringify(
-    { deliverables, selectedCourses: [...selectedCourses], timelineDayWidth },
-    null,
-    2
-  );
+const CSV_HEADERS = ["Course", "Type", "Task", "Start", "End", "Weight"];
 
-  if (desktop) {
-    const result = await window.coursePlanner.exportJson(text);
-    if (!result.canceled && result.filePath) {
-      alert(`Exported to ${result.filePath}`);
+function escapeCsvCell(value) {
+  const s = String(value ?? "");
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function deliverablesToCsv(rows) {
+  const lines = [CSV_HEADERS.join(",")];
+  for (const r of rows) {
+    lines.push(
+      [
+        escapeCsvCell(r.course),
+        escapeCsvCell(r.type),
+        escapeCsvCell(r.task),
+        escapeCsvCell(r.startDate ?? ""),
+        escapeCsvCell(r.endDate ?? ""),
+        escapeCsvCell(r.weight),
+      ].join(",")
+    );
+  }
+  return lines.join("\n");
+}
+
+function parseCsvLine(line) {
+  const out = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cur += ch;
+      }
+      continue;
     }
-    return;
+    if (ch === '"') {
+      inQuotes = true;
+      continue;
+    }
+    if (ch === ",") {
+      out.push(cur);
+      cur = "";
+      continue;
+    }
+    cur += ch;
+  }
+  out.push(cur);
+  return out;
+}
+
+function normalizeHeader(h) {
+  return String(h ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s*\(%\)\s*$/, "")
+    .replace(/\s+/g, "");
+}
+
+function csvToDeliverables(text) {
+  const lines = text
+    .replace(/^\uFEFF/, "")
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0);
+  if (!lines.length) throw new Error("CSV file is empty");
+
+  const headerCells = parseCsvLine(lines[0]).map(normalizeHeader);
+  const col = (...names) => {
+    for (const name of names) {
+      const idx = headerCells.indexOf(name);
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
+
+  const courseIdx = col("course");
+  const typeIdx = col("type");
+  const taskIdx = col("task", "name", "title");
+  const startIdx = col("start", "startdate");
+  const endIdx = col("end", "enddate", "due", "duedate");
+  const weightIdx = col("weight", "weightpercent");
+
+  if (courseIdx < 0 || typeIdx < 0 || taskIdx < 0 || endIdx < 0) {
+    throw new Error('CSV must include columns: Course, Type, Task, End (Start and Weight optional)');
   }
 
-  const blob = new Blob([text], { type: "application/json" });
+  return lines.slice(1).map((line) => {
+    const cells = parseCsvLine(line);
+    const pick = (idx) => (idx >= 0 ? String(cells[idx] ?? "").trim() : "");
+    const start = pick(startIdx);
+    const end = pick(endIdx);
+    return normalizeRow({
+      course: pick(courseIdx),
+      type: pick(typeIdx) || "Assignment",
+      task: pick(taskIdx),
+      startDate: start || null,
+      endDate: end || null,
+      weight: weightIdx >= 0 ? Number(pick(weightIdx)) || 0 : 0,
+    });
+  });
+}
+
+function exportPayload() {
+  return { deliverables, selectedCourses: [...selectedCourses], timelineDayWidth };
+}
+
+async function downloadText(text, filename, mime) {
+  const blob = new Blob([text], { type: mime });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "course-deliverables.json";
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(a.href);
 }
 
-async function importJsonFromFile(file) {
-  const text = await file.text();
-  applyImportedJson(JSON.parse(text));
+async function saveTextFile(text, opts) {
+  if (desktop) {
+    const result = await window.coursePlanner.exportFile({ text, ...opts });
+    if (!result.canceled && result.filePath) alert(`Exported to ${result.filePath}`);
+    return;
+  }
+  await downloadText(text, opts.defaultPath, opts.mime);
+}
+
+async function exportJson() {
+  const text = JSON.stringify(exportPayload(), null, 2);
+  await saveTextFile(text, {
+    defaultPath: "course-deliverables.json",
+    filters: [{ name: "JSON", extensions: ["json"] }],
+    title: "Export JSON",
+    mime: "application/json",
+  });
+}
+
+async function exportCsv() {
+  const text = deliverablesToCsv(deliverables);
+  await saveTextFile(text, {
+    defaultPath: "course-deliverables.csv",
+    filters: [{ name: "CSV", extensions: ["csv"] }],
+    title: "Export CSV",
+    mime: "text/csv",
+  });
+}
+
+async function importJsonFromText(text) {
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error("Invalid JSON file");
+  }
+  applyImportedJson(data);
 }
 
 function applyImportedJson(data) {
@@ -937,14 +1085,64 @@ function applyImportedJson(data) {
   alert(`Imported ${deliverables.length} deliverables.`);
 }
 
-async function importJson() {
+function applyImportedCsv(text) {
+  deliverables = csvToDeliverables(text);
+  selectedCourses = new Set(uniqueCourses());
+  refresh();
+  alert(`Imported ${deliverables.length} deliverables from CSV.`);
+}
+
+async function importJsonFromFile(file) {
+  await importJsonFromText(await file.text());
+}
+
+async function importCsvFromFile(file) {
+  applyImportedCsv(await file.text());
+}
+
+async function importWithDialog({ filters, title, fileInputId, applyText }) {
   if (desktop) {
-    const result = await window.coursePlanner.importJson();
+    const result = await window.coursePlanner.importFile({ filters, title });
     if (result.canceled) return;
-    applyImportedJson(result.data);
+    try {
+      await applyText(result.text);
+    } catch (err) {
+      alert(`Import failed: ${err.message}`);
+    }
     return;
   }
-  document.getElementById("import-file")?.click();
+  document.getElementById(fileInputId)?.click();
+}
+
+async function importJson() {
+  return importWithDialog({
+    filters: [{ name: "JSON", extensions: ["json"] }],
+    title: "Import JSON",
+    fileInputId: "import-file-json",
+    applyText: importJsonFromText,
+  });
+}
+
+async function importCsv() {
+  return importWithDialog({
+    filters: [{ name: "CSV", extensions: ["csv"] }],
+    title: "Import CSV",
+    fileInputId: "import-file-csv",
+    applyText: applyImportedCsv,
+  });
+}
+
+async function resetToSeed() {
+  if (
+    !confirm(
+      "Replace all deliverables with the sample data in data/seed.json? This cannot be undone."
+    )
+  ) {
+    return;
+  }
+  deliverables = await loadSeed();
+  selectedCourses = new Set(uniqueCourses());
+  refresh();
 }
 
 async function init() {
@@ -971,22 +1169,35 @@ async function init() {
   }
 
   lastKnownCourses = new Set(uniqueCourses());
-  refresh();
+  refresh({ save: false });
+  updateStorageHint();
 
   document.getElementById("btn-add-row")?.addEventListener("click", addRow);
-  document.getElementById("btn-export")?.addEventListener("click", exportJson);
-  document.getElementById("btn-import")?.addEventListener("click", importJson);
-  document.getElementById("import-file")?.addEventListener("change", async (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      try {
-        await importJsonFromFile(file);
-      } catch (err) {
-        alert(`Import failed: ${err.message}`);
-      }
-    }
-    e.target.value = "";
+  document.getElementById("btn-select-all-courses")?.addEventListener("click", selectAllCourses);
+  document.getElementById("btn-clear-courses")?.addEventListener("click", clearCourseSelection);
+  document.getElementById("btn-reset-seed")?.addEventListener("click", () => {
+    resetToSeed().catch((err) => alert(`Reset failed: ${err.message}`));
   });
+  document.getElementById("btn-export-json")?.addEventListener("click", exportJson);
+  document.getElementById("btn-export-csv")?.addEventListener("click", exportCsv);
+  document.getElementById("btn-import-json")?.addEventListener("click", importJson);
+  document.getElementById("btn-import-csv")?.addEventListener("click", importCsv);
+
+  const wireImportFile = (id, handler) => {
+    document.getElementById(id)?.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        try {
+          await handler(file);
+        } catch (err) {
+          alert(`Import failed: ${err.message}`);
+        }
+      }
+      e.target.value = "";
+    });
+  };
+  wireImportFile("import-file-json", importJsonFromFile);
+  wireImportFile("import-file-csv", importCsvFromFile);
 
   document.getElementById("timeline-color")?.addEventListener("change", renderTimeline);
 }
