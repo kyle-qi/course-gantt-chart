@@ -32,6 +32,9 @@ const FALLBACK_PALETTE = [
 const desktop = window.coursePlanner?.isDesktop === true;
 
 let deliverables = [];
+/** @type {{ field: string, dir: 1 | -1 } | null} */
+let editorSort = null;
+let editorSortWired = false;
 /** @type {Set<string>} */
 let selectedCourses = new Set();
 /** @type {Set<string>} */
@@ -588,11 +591,15 @@ function renderTimeline() {
 
   html += '<div class="timeline-tasks-col">';
   html += '<div class="timeline-tasks-header">Task</div>';
+  html += '<div class="timeline-tasks-body">';
   for (const d of items) {
     const label = `${d.course} · ${d.task}`;
-    html += `<div class="timeline-task-label" title="${escapeAttr(label)}">${label}</div>`;
+    html += `<div class="timeline-task-row" title="${escapeAttr(label)}">`;
+    html += `<span class="timeline-task-label-text">${label}</span>`;
+    html += '<span class="timeline-task-row-rule" aria-hidden="true"></span>';
+    html += "</div>";
   }
-  html += "</div>";
+  html += "</div></div>";
 
   html += `<div class="timeline-chart-col" style="width:${trackWidthPx}px">`;
   html += '<div class="timeline-chart-inner">';
@@ -812,10 +819,78 @@ function positionTooltip(tooltip, clientX, clientY) {
 
 // --- editor ---
 
+function compareNullableDate(a, b) {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return a.localeCompare(b);
+}
+
+function sortDeliverables(rows, field, dir) {
+  const d = dir;
+  return [...rows].sort((a, b) => {
+    let cmp = 0;
+    switch (field) {
+      case "course":
+      case "type":
+      case "task":
+        cmp = String(a[field] ?? "").localeCompare(String(b[field] ?? ""), undefined, {
+          sensitivity: "base",
+        });
+        break;
+      case "startDate":
+      case "endDate":
+        cmp = compareNullableDate(a[field], b[field]);
+        break;
+      case "weight":
+        cmp = (Number(a.weight) || 0) - (Number(b.weight) || 0);
+        break;
+      default:
+        return 0;
+    }
+    return cmp * d || String(a.id).localeCompare(String(b.id));
+  });
+}
+
+function updateEditorSortHeaders() {
+  document.querySelectorAll(".data-table [data-sort-field]").forEach((th) => {
+    const field = th.dataset.sortField;
+    if (editorSort?.field === field) {
+      th.setAttribute("aria-sort", editorSort.dir === 1 ? "ascending" : "descending");
+    } else {
+      th.setAttribute("aria-sort", "none");
+    }
+  });
+}
+
+function wireEditorSort() {
+  if (editorSortWired) return;
+  editorSortWired = true;
+
+  document.querySelectorAll(".data-table [data-sort-field]").forEach((th) => {
+    const field = th.dataset.sortField;
+    if (!field) return;
+    th.querySelector(".th-sort-btn")?.addEventListener("click", () => {
+      if (editorSort?.field === field) {
+        editorSort.dir = editorSort.dir === 1 ? -1 : 1;
+      } else {
+        editorSort = { field, dir: 1 };
+      }
+      deliverables = sortDeliverables(deliverables, field, editorSort.dir);
+      savePersisted();
+      renderEditor();
+    });
+  });
+}
+
 function renderEditor() {
   const tbody = document.getElementById("editor-body");
   if (!tbody) return;
   tbody.innerHTML = "";
+
+  if (editorSort) {
+    deliverables = sortDeliverables(deliverables, editorSort.field, editorSort.dir);
+  }
 
   deliverables.forEach((row) => {
     const tr = document.createElement("tr");
@@ -853,6 +928,8 @@ function renderEditor() {
   dl.innerHTML = [...new Set(deliverables.map((d) => d.type).filter(Boolean))]
     .map((t) => `<option value="${escapeAttr(t)}"></option>`)
     .join("");
+
+  updateEditorSortHeaders();
 }
 
 function commitRowFromDom(tr) {
@@ -1145,6 +1222,8 @@ async function init() {
   lastKnownCourses = new Set(uniqueCourses());
   refresh({ save: false });
   updateStorageHint();
+
+  wireEditorSort();
 
   document.getElementById("btn-add-row")?.addEventListener("click", addRow);
   document.getElementById("btn-export-json")?.addEventListener("click", exportJson);

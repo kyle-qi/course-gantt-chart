@@ -1,5 +1,9 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+window.addEventListener("DOMContentLoaded", () => {
+  document.body.classList.add("is-desktop");
+});
+
 contextBridge.exposeInMainWorld("coursePlanner", {
   isDesktop: true,
   loadData: () => ipcRenderer.invoke("load-data"),

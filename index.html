@@ -8,16 +8,21 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header class="app-header window-drag">
-    <div class="header-actions">
-      <button type="button" id="btn-export-json" class="btn secondary">Export JSON</button>
-      <button type="button" id="btn-export-csv" class="btn secondary">Export CSV</button>
-      <button type="button" id="btn-import-json" class="btn secondary">Import JSON</button>
-      <button type="button" id="btn-import-csv" class="btn secondary">Import CSV</button>
-      <input type="file" id="import-file-json" accept="application/json,.json" hidden />
-      <input type="file" id="import-file-csv" accept="text/csv,.csv" hidden />
+  <div class="app-chrome">
+    <div class="window-titlebar window-drag" aria-hidden="true">
+      <span class="window-titlebar-label">Course Timeline</span>
     </div>
-  </header>
+    <header class="app-header">
+      <div class="header-actions">
+        <button type="button" id="btn-export-json" class="btn secondary">Export JSON</button>
+        <button type="button" id="btn-export-csv" class="btn secondary">Export CSV</button>
+        <button type="button" id="btn-import-json" class="btn secondary">Import JSON</button>
+        <button type="button" id="btn-import-csv" class="btn secondary">Import CSV</button>
+        <input type="file" id="import-file-json" accept="application/json,.json" hidden />
+        <input type="file" id="import-file-csv" accept="text/csv,.csv" hidden />
+      </div>
+    </header>
+  </div>
 
   <main>
     <div class="timeline-toolbar">
@@ -67,13 +72,25 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th>Course</th>
-              <th>Type</th>
-              <th>Task</th>
-              <th>Start</th>
-              <th>End</th>
-              <th>Weight (%)</th>
-              <th></th>
+              <th scope="col" class="th-sortable" data-sort-field="course">
+                <button type="button" class="th-sort-btn">Course</button>
+              </th>
+              <th scope="col" class="th-sortable" data-sort-field="type">
+                <button type="button" class="th-sort-btn">Type</button>
+              </th>
+              <th scope="col" class="th-sortable" data-sort-field="task">
+                <button type="button" class="th-sort-btn">Task</button>
+              </th>
+              <th scope="col" class="th-sortable" data-sort-field="startDate">
+                <button type="button" class="th-sort-btn">Start</button>
+              </th>
+              <th scope="col" class="th-sortable" data-sort-field="endDate">
+                <button type="button" class="th-sort-btn">End</button>
+              </th>
+              <th scope="col" class="th-sortable" data-sort-field="weight">
+                <button type="button" class="th-sort-btn">Weight (%)</button>
+              </th>
+              <th scope="col" class="col-actions" aria-label="Actions"></th>
             </tr>
           </thead>
           <tbody id="editor-body"></tbody>
