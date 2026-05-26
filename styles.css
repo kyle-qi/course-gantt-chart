@@ -362,11 +362,15 @@ main {
 .timeline-tasks-col {
   flex: 0 0 var(--label-width, 200px);
   width: var(--label-width, 200px);
+  max-width: var(--label-width, 200px);
   position: sticky;
   left: 0;
   z-index: 4;
   background: var(--surface);
   border-right: 1px solid var(--border);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
 
 .timeline-tasks-header {
@@ -394,8 +398,8 @@ main {
   display: flex;
   align-items: center;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  width: max-content;
+  min-width: 100%;
   border-bottom: 1px solid #eef0f3;
   background: var(--surface);
   font-size: 0.8rem;

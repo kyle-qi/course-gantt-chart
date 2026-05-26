@@ -483,6 +483,7 @@ function buildTimelineItems() {
     .filter((d) => d.range.start && d.range.end)
     .sort(
       (a, b) =>
+        a.range.end - b.range.end ||
         a.range.start - b.range.start ||
         a.course.localeCompare(b.course) ||
         a.task.localeCompare(b.task)
@@ -551,7 +552,6 @@ function renderTimeline() {
 
   const numDays = countDaysInclusive(minDate, maxDate);
   const days = enumerateDays(minDate, numDays);
-  const daySpan = Math.max(1, numDays - 1);
 
   lastTimelineNumDays = numDays;
 
@@ -627,16 +627,17 @@ function renderTimeline() {
   for (const d of items) {
     const rangeStart = startOfDay(d.range.start);
     const rangeEnd = startOfDay(d.range.end);
-    const leftPct = (dayOffset(minDate, rangeStart) / daySpan) * 100;
+    const startOffset = dayOffset(minDate, rangeStart);
     const spanDays = countDaysInclusive(rangeStart, rangeEnd);
-    const widthPct = Math.max(100 / numDays, (spanDays / numDays) * 100);
+    const leftPx = startOffset * timelineDayWidth;
+    const widthPx = spanDays * timelineDayWidth;
     const color = colorFor(colorMode === "course" ? d.course : d.type, colorMode);
     const startStr = formatDateInput(d.range.start);
     const endStr = formatDateInput(d.range.end);
 
     html += `<div class="timeline-chart-row" style="grid-template-columns:${gridColsChart}">`;
     html += '<div class="timeline-track">';
-    html += `<div class="timeline-bar" style="left:${leftPct}%;width:${widthPct}%;background:${color}"
+    html += `<div class="timeline-bar" style="left:${leftPx}px;width:${widthPx}px;background:${color}"
       data-course="${escapeAttr(d.course)}"
       data-task="${escapeAttr(d.task)}"
       data-type="${escapeAttr(d.type)}"
@@ -699,6 +700,7 @@ function wireTimelineDragScroll() {
 
   const shouldIgnoreDrag = (target) => {
     if (target.closest(".timeline-bar")) return true;
+    if (target.closest(".timeline-tasks-col")) return true;
     if (target.closest("input, button, select, a, label, .course-chip")) return true;
     return false;
   };
