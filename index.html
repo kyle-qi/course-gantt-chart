@@ -12,16 +12,6 @@
     <div class="window-titlebar window-drag" aria-hidden="true">
       <span class="window-titlebar-label">Course Timeline</span>
     </div>
-    <header class="app-header">
-      <div class="header-actions">
-        <button type="button" id="btn-export-json" class="btn secondary">Export JSON</button>
-        <button type="button" id="btn-export-csv" class="btn secondary">Export CSV</button>
-        <button type="button" id="btn-import-json" class="btn secondary">Import JSON</button>
-        <button type="button" id="btn-import-csv" class="btn secondary">Import CSV</button>
-        <input type="file" id="import-file-json" accept="application/json,.json" hidden />
-        <input type="file" id="import-file-csv" accept="text/csv,.csv" hidden />
-      </div>
-    </header>
   </div>
 
   <main>
@@ -38,6 +28,14 @@
           <div class="toolbar-group toolbar-zoom">
             <span class="toolbar-label">Zoom</span>
             <input type="range" id="timeline-zoom" min="8" max="56" value="20" step="1" />
+          </div>
+          <div class="toolbar-group toolbar-io" role="group" aria-label="Import and export">
+            <button type="button" id="btn-export-json" class="btn secondary btn-sm">Export JSON</button>
+            <button type="button" id="btn-export-csv" class="btn secondary btn-sm">Export CSV</button>
+            <button type="button" id="btn-import-json" class="btn secondary btn-sm">Import JSON</button>
+            <button type="button" id="btn-import-csv" class="btn secondary btn-sm">Import CSV</button>
+            <input type="file" id="import-file-json" accept="application/json,.json" hidden />
+            <input type="file" id="import-file-csv" accept="text/csv,.csv" hidden />
           </div>
         </div>
         <span id="storage-hint" class="hint toolbar-hint"></span>

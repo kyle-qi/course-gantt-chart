@@ -37,8 +37,7 @@ body {
   display: none;
 }
 
-body.is-desktop .window-titlebar,
-@supports (-webkit-app-region: drag) .window-titlebar {
+body.is-desktop .window-titlebar {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -60,21 +59,20 @@ body.is-desktop .window-titlebar,
   pointer-events: none;
 }
 
-.app-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-}
+/* Electron: drag window from title bar; keep controls clickable */
+@supports (-webkit-app-region: drag) {
+  body.is-desktop .window-titlebar {
+    -webkit-app-region: drag;
+  }
 
-.header-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  body.is-desktop button,
+  body.is-desktop input,
+  body.is-desktop select,
+  body.is-desktop label,
+  body.is-desktop a,
+  body.is-desktop .course-chip {
+    -webkit-app-region: no-drag;
+  }
 }
 
 main {
@@ -100,6 +98,11 @@ main {
 
 .btn.secondary:hover {
   background: var(--bg);
+}
+
+.btn-sm {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8125rem;
 }
 
 .hint {
@@ -181,6 +184,13 @@ main {
 .toolbar-zoom input[type="range"] {
   width: 120px;
   accent-color: var(--accent);
+}
+
+.toolbar-io {
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--border);
 }
 
 .toolbar-row-courses .toolbar-label,
@@ -793,10 +803,16 @@ main {
 }
 
 @media (max-width: 640px) {
-  .app-header,
   main {
     padding-left: 1rem;
     padding-right: 1rem;
+  }
+
+  .toolbar-io {
+    flex: 1 1 100%;
+    padding-left: 0;
+    border-left: none;
+    padding-top: 0.5rem;
   }
 
   .toolbar-hint {

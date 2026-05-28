@@ -700,6 +700,7 @@ function wireTimelineDragScroll() {
   timelineDragWired = true;
 
   let dragging = false;
+  let activePointerId = null;
   let startX = 0;
   let startY = 0;
   let scrollStartLeft = 0;
@@ -712,27 +713,35 @@ function wireTimelineDragScroll() {
     return false;
   };
 
-  viewport.addEventListener("mousedown", (e) => {
+  const endDrag = () => {
+    if (!dragging) return;
+    dragging = false;
+    activePointerId = null;
+    viewport.classList.remove("is-drag-scrolling");
+  };
+
+  viewport.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || shouldIgnoreDrag(e.target)) return;
     dragging = true;
+    activePointerId = e.pointerId;
     startX = e.clientX;
     startY = e.clientY;
     scrollStartLeft = viewport.scrollLeft;
     scrollStartTop = viewport.scrollTop;
     viewport.classList.add("is-drag-scrolling");
+    viewport.setPointerCapture(e.pointerId);
   });
 
-  window.addEventListener("mousemove", (e) => {
-    if (!dragging) return;
+  viewport.addEventListener("pointermove", (e) => {
+    if (!dragging || e.pointerId !== activePointerId) return;
     viewport.scrollLeft = scrollStartLeft - (e.clientX - startX);
     viewport.scrollTop = scrollStartTop - (e.clientY - startY);
   });
 
-  window.addEventListener("mouseup", () => {
-    if (!dragging) return;
-    dragging = false;
-    viewport.classList.remove("is-drag-scrolling");
-  });
+  viewport.addEventListener("pointerup", endDrag);
+  viewport.addEventListener("pointercancel", endDrag);
+  viewport.addEventListener("lostpointercapture", endDrag);
+  window.addEventListener("blur", endDrag);
 }
 
 function wireHoverTooltips(container, selector, { onShow, onHide }) {
